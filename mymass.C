@@ -71,7 +71,7 @@ void AnalyseEvents(ExRootTreeReader *treeReader, const char *outputFile_det, con
     for(i = 0; i < branchFatJet->GetEntriesFast(); ++i)
       {
 
-	if (i > 0) continue; //let's just take the leading jet.
+	//if (i > 0) continue; //let's just take the leading jet.
 	
 	jet = (Jet*) branchFatJet->At(i);
 	jetMomentum = jet->P4();
