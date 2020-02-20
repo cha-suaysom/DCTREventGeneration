@@ -10,4 +10,4 @@
 
 	1. `./DelphesPythia8 DCTREventGeneration/delphes_card_CMS.tcl DCTREventGeneration/configNoLHE.cmnd output.root`
 
-	2. `root -b -x -q 'DCTREventGeneration/mymass.C("output.root","output_det.txt","output_part.txt")'`	
+	2. `root -b -x -q 'DCTREventGeneration/mymass.C("output.root","output_det.csv","output_part.csv","output_hadron.csv")'`	
