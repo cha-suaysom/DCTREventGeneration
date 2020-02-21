@@ -18,7 +18,9 @@ class ExRootTreeReader;
 
 //------------------------------------------------------------------------------
 
-void AnalyseEvents(ExRootTreeReader *treeReader, const char *outputFile_det, const char *outputFile_part, const char *outputFile_hadron)
+void AnalyseEvents(ExRootTreeReader *treeReader, const char *outputFile_det, const char *outputFile_part, const char *outputFile_hadron,
+	const char *outputFile_part_sub, const char *outputFile_det_sub)
+
 {
   TClonesArray *branchGenJet = treeReader->UseBranch("GenJet");
   TClonesArray *branchParticle = treeReader->UseBranch("Particle");
@@ -36,6 +38,8 @@ void AnalyseEvents(ExRootTreeReader *treeReader, const char *outputFile_det, con
   ofstream myfile_det;
   ofstream myfile_part;
   ofstream myfile_hadron;
+  ofstream myfile_part_sub;
+  ofstream myfile_det_sub;
 
   cout << "** Chain contains " << allEntries << " events" << endl;
 
@@ -59,11 +63,15 @@ void AnalyseEvents(ExRootTreeReader *treeReader, const char *outputFile_det, con
   myfile_det.open (outputFile_det);
   myfile_part.open (outputFile_part);
   myfile_hadron.open (outputFile_hadron);
+  myfile_part_sub.open (outputFile_part_sub);
+  myfile_det_sub.open (outputFile_det_sub);
 
   // Define the csv header
-  myfile_part << "index,pT,eta,phi,m,tau_0,tau_1,tau_2,tau_3,tau_4,soft_pT,soft_M,trimmed_pT,trimmed_M,n_trimmed" << endl;
-  myfile_det  << "index,pT,eta,phi,m,tau_0,tau_1,tau_2,tau_3,tau_4,soft_pT,soft_M,trimmed_pT,trimmed_M,n_trimmed" << endl;
-  myfile_hadron << "status,pT,eta,phi,m,m1,m2,pid" << endl;
+  myfile_part << "entry,index,pT,eta,phi,p,tau_0,tau_1,tau_2,tau_3,tau_4,soft_pT,soft_M,trimmed_pT,trimmed_M,n_trimmed" << endl;
+  myfile_part_sub << "entry, pT,eta,phi,pid" << endl;
+  myfile_det  << "entry,index,pT,eta,phi,p,tau_0,tau_1,tau_2,tau_3,tau_4,soft_pT,soft_M,trimmed_pT,trimmed_M,n_trimmed" << endl;
+  myfile_det_sub << "entry,pT/eT,eta,phi,pid" << endl;
+  myfile_hadron << "entry,status,pT,eta,phi,m,m1,m2,pid" << endl;
 
   // Loop over all events
   for(entry = 0; entry < allEntries; ++entry)
@@ -117,7 +125,7 @@ void AnalyseEvents(ExRootTreeReader *treeReader, const char *outputFile_det, con
 	    //For the part part
 
 	    // Define csv header
-	    
+	    myfile_part << entry << ",";
 
 	    myfile_part << whichjet << "," 
 	    			<< particle2->PT << "," 
@@ -135,27 +143,33 @@ void AnalyseEvents(ExRootTreeReader *treeReader, const char *outputFile_det, con
 	    			<< particle2->SoftDroppedP4.M() << "," 
 	    			<< particle2->TrimmedP4.Pt() << "," 
 	    			<< particle2->TrimmedP4.M() << "," 
-	    			<< particle2->NSubJetsTrimmed << ",";
+	    			<< particle2->NSubJetsTrimmed << endl;
+	
 
 	    
-	  //   for(int j2 = 0; j2 < particle2->Constituents.GetEntriesFast(); ++j2)
-	  //     {
-			// object = particle2->Constituents.At(j2);
-			// if(object == 0){
 
-	  //               }
-			// if(object->IsA() == GenParticle::Class())
-			//   {
-			//     subparticle = (GenParticle*) object;
-			//     myfile_part << subparticle->PT << "," 
-			//     			<< subparticle->Eta << "," 
-			//     			<< subparticle->Phi << "," 
-			//     			<< subparticle->PID;
-			//   }
-	  //     }
-	    myfile_part << std::endl;
+	    for(int j2 = 0; j2 < particle2->Constituents.GetEntriesFast(); ++j2)
+	      {
+			object = particle2->Constituents.At(j2);
+			if(object == 0){
+
+	                }
+			if(object->IsA() == GenParticle::Class())
+			  {
+			    subparticle = (GenParticle*) object;
+	   			myfile_part_sub << entry << ",";
+			    myfile_part_sub << subparticle->PT << "," 
+			    			<< subparticle->Eta << "," 
+			    			<< subparticle->Phi << "," 
+			    			<< subparticle->PID << endl;
+			  }
+	      }
+
+	    
 
 	    //Now for the det part.
+	    myfile_det << entry << ",";
+
 	    myfile_det << i << "," 
 	    		   << jet->PT << "," 
 	    		   << jet->Eta << "," 
@@ -172,52 +186,62 @@ void AnalyseEvents(ExRootTreeReader *treeReader, const char *outputFile_det, con
 	    		   << jet->SoftDroppedP4.M() << "," 
 	    		   << jet->TrimmedP4.Pt() << "," 
 	    		   << jet->TrimmedP4.M() << "," 
-	    		   << jet->NSubJetsTrimmed << ",";
+	    		   << jet->NSubJetsTrimmed << endl;
 
-	 //    for(int j2 = 0; j2 < jet->Constituents.GetEntriesFast(); ++j2)
-	 //      {
-		// 	object = jet->Constituents.At(j2);
-		// 	if(object == 0)
-		// 		{  
-		// 		}
-		// else if(object->IsA() == Track::Class()){
-		//   track = (Track*) object;
-		//   if (abs(track->PID)==11){
-		//     myfile_det << track->PT << "," 
-		//     		   << track->Eta << "," 
-		//     		   << track->Phi << "," 
-		//     		   << "11" << ",";  
-		//   }
-		//   else if (abs(track->PID)==13){
-		//     myfile_det << track->PT << "," 
-		//     		   << track->Eta << "," 
-		//     		   << track->Phi << "," 
-		//     		   << "13" << ",";
-		//   }
-		//   else{
-		//     myfile_det << track->PT << "," 
-		//     		   << track->Eta << "," 
-		//     		   << track->Phi << "," 
-		//     		   << "211" << ",";
-		//   }
-		// }
-		// else if(object->IsA() == Tower::Class()){
-		//   tower = (Tower*) object;
-		//   if (tower->Eem/(tower->Eem+tower->Ehad) == 1){
-		//     myfile_det << tower->ET << "," 
-		//     		   << tower->Eta << "," 
-		//     		   << tower->Phi << "," 
-		//     		   << "22" << ",";
-		//   }
-		//   else{
-		//     myfile_det << tower->ET << "," 
-		//                << tower->Eta << "," 
-		//                << tower->Phi << ","
-		//                << "2112";
-		//   }
-		// }
-	 //      }
-	    myfile_det << std::endl;
+	    for(int j2 = 0; j2 < jet->Constituents.GetEntriesFast(); ++j2)
+	      {
+	      	
+			object = jet->Constituents.At(j2);
+			if(object == 0)
+				{  
+				}
+		
+		
+
+		else if(object->IsA() == Track::Class()){
+		  track = (Track*) object;
+		  if (abs(track->PID)==11){
+		  	myfile_det_sub << entry << ",";
+		    myfile_det_sub << track->PT << "," 
+		    		   << track->Eta << "," 
+		    		   << track->Phi << "," 
+		    		   << "11" << endl;  
+		  }
+		  else if (abs(track->PID)==13){
+		  	myfile_det_sub << entry << ",";
+		    myfile_det_sub << track->PT << "," 
+		    		   << track->Eta << "," 
+		    		   << track->Phi << "," 
+		    		   << "13" << endl; 
+		  }
+		  else{
+		  	myfile_det_sub << entry << ",";
+		    myfile_det_sub << track->PT << "," 
+		    		   << track->Eta << "," 
+		    		   << track->Phi << "," 
+		    		   << "211" << endl; 
+		  }
+		}
+		else if(object->IsA() == Tower::Class()){
+
+		  tower = (Tower*) object;
+		  if (tower->Eem/(tower->Eem+tower->Ehad) == 1){
+		  	myfile_det_sub << entry << ",";
+		    myfile_det_sub << tower->ET << "," 
+		    		   << tower->Eta << "," 
+		    		   << tower->Phi << "," 
+		    		   << "22" << endl; 
+		  }
+		  else{
+		  	myfile_det_sub << entry << ",";
+		    myfile_det_sub << tower->ET << "," 
+		               << tower->Eta << "," 
+		               << tower->Phi << ","
+		               << "2112" << endl; 
+		  }
+		}
+	      }
+	    
 	  }
       }
 
@@ -236,6 +260,8 @@ void AnalyseEvents(ExRootTreeReader *treeReader, const char *outputFile_det, con
 			if (abs(gen->PID)==16 ) continue;
 			//save 4-vector and PdgID
 			
+			myfile_hadron << entry << ",";
+
 			myfile_hadron << gen->Status << "," 
 						  << gen->PT << "," 
 						  << gen->Eta << "," 
@@ -250,7 +276,8 @@ void AnalyseEvents(ExRootTreeReader *treeReader, const char *outputFile_det, con
 }
 //------------------------------------------------------------------------------
 
-void mymass(const char *inputFile, const char *outputFile_det, const char *outputFile_part, const char *outputFile_hadron)
+void mymass(const char *inputFile, const char *outputFile_det, const char *outputFile_part, const char *outputFile_hadron,
+	const char *outputFile_part_sub, const char *outputFile_det_sub)
 {
   gSystem->Load("libDelphes");
 
@@ -260,7 +287,8 @@ void mymass(const char *inputFile, const char *outputFile_det, const char *outpu
   ExRootTreeReader *treeReader = new ExRootTreeReader(chain);
   ExRootResult *result = new ExRootResult();
 
-  AnalyseEvents(treeReader, outputFile_det, outputFile_part, outputFile_hadron);
+  AnalyseEvents(treeReader, outputFile_det, outputFile_part, outputFile_hadron,
+  		outputFile_part_sub, outputFile_det_sub);
 
   cout << "** Exiting..." << endl;
 
