@@ -16,7 +16,33 @@ class ExRootResult;
 class ExRootResult;
 class ExRootTreeReader;
 
-//------------------------------------------------------------------------------
+#include<iostream>
+using namespace std;
+
+
+// Find the last index using recursion
+int find_index(TClonesArray* branchParticle, int first_particle_index, int end_particle_PID) {
+	if  (first_particle_index == -1) {
+		return -1;
+	}
+	GenParticle *current_particle = (GenParticle*) branchParticle->At(first_particle_index); 
+	
+	if (current_particle->PID != end_particle_PID) {
+		int d1_index = find_index(branchParticle, current_particle->D1, end_particle_PID);
+
+		if (d1_index == -1) {
+			return find_index(branchParticle, current_particle->D2, end_particle_PID);
+		}
+		else {
+			return d1_index;
+		}
+
+		
+	}
+	else {
+		return first_particle_index;
+	}
+}
 
 void AnalyseEvents(ExRootTreeReader *treeReader, const char *outputFile_det, const char *outputFile_part, const char *outputFile_hadron,
 	const char *outputFile_part_sub, const char *outputFile_det_sub)
@@ -37,7 +63,7 @@ void AnalyseEvents(ExRootTreeReader *treeReader, const char *outputFile_det, con
   Long64_t allEntries = treeReader->GetEntries();
   ofstream myfile_det;
   ofstream myfile_part;
-  ofstream myfile_hadron;
+  ofstream myfile_all_stable_particles;
   ofstream myfile_part_sub;
   ofstream myfile_det_sub;
 
@@ -62,218 +88,78 @@ void AnalyseEvents(ExRootTreeReader *treeReader, const char *outputFile_det, con
 
   myfile_det.open (outputFile_det);
   myfile_part.open (outputFile_part);
-  myfile_hadron.open (outputFile_hadron);
+  myfile_all_stable_particles.open (outputFile_hadron);
   myfile_part_sub.open (outputFile_part_sub);
   myfile_det_sub.open (outputFile_det_sub);
 
   // Define the csv header
+  myfile_det  << "entry,px,py,pz,E,pid" << endl;
   myfile_part << "entry,index,pT,eta,phi,p,tau_0,tau_1,tau_2,tau_3,tau_4,soft_pT,soft_M,trimmed_pT,trimmed_M,n_trimmed" << endl;
-  myfile_part_sub << "entry, pT,eta,phi,pid" << endl;
-  myfile_det  << "entry,index,pT,eta,phi,p,tau_0,tau_1,tau_2,tau_3,tau_4,soft_pT,soft_M,trimmed_pT,trimmed_M,n_trimmed" << endl;
+  myfile_all_stable_particles << "entry,pT,eta,phi,pid" << endl;
+  myfile_part_sub << "entry,jet_index,px,py,pz,E,pid" << endl;
   myfile_det_sub << "entry,pT/eT,eta,phi,pid" << endl;
-  myfile_hadron << "entry,status,pT,eta,phi,m,m1,m2,pid" << endl;
+
 
   // Loop over all events
   for(entry = 0; entry < allEntries; ++entry)
   {
-    if (entry > 10000) break;
+    if (entry > 1000) break;
     // Load selected branches with data from specified event
     treeReader->ReadEntry(entry);
-
-    if(entry%500 == 0) cout << "Event number: "<< entry <<endl;
+    if(entry%100 == 0) cout << "Event number: "<< entry <<endl;
      
+    // We want to find the truth bbar vdbar and l
+    bool find_t = false;
+	int t_PID = 6;
+	int boson_plus_PID = 24;
+	int electron_PID = -11;
+	int muon_PID = -13;
+	int b_PID = 5;
 
-    //Loop over all reconstructed jets in event
-    for(i = 0; i < branchFatJet->GetEntriesFast(); ++i)
+	bool find_tbar = false;
+	int tb_PID = -6;
+	int bb_PID = -5;
+
+
+	 for(int k = 0; k < branchParticle ->GetEntriesFast(); ++k)
       {
+      	GenParticle *gen = (GenParticle*) branchParticle->At(k); 
 
-	//if (i > 0) continue; //let's just take the leading jet.
-	
-	jet = (Jet*) branchFatJet->At(i);
-	jetMomentum = jet->P4();
-
-	deltaR = 999;
-	int whichjet = 0;
-	
-
-
-
-	// Loop over all hard partons in event
-	for(j = 0; j < branchTruthFatJet->GetEntriesFast(); ++j)
-	  {
-	    particle = (Jet*) branchTruthFatJet->At(j);
-	    
-	    genJetMomentum = particle->P4();
-	    
-	    // take the closest parton candidate
-	    if(genJetMomentum.DeltaR(jetMomentum) < deltaR)
-	      {
-		deltaR = genJetMomentum.DeltaR(jetMomentum);
-		bestGenJetMomentum = genJetMomentum;
-		particle2 = (Jet*) branchTruthFatJet->At(j);
-		whichjet = j;
-	      }
-	  }
-	
-
-
-	if(deltaR < 0.3)
-	  {
-	    pt  = jetMomentum.Pt();
-	    eta = TMath::Abs(jetMomentum.Eta());
-	    
-	    //For the part part
-
-	    // Define csv header
-	    myfile_part << entry << ",";
-
-	    myfile_part << whichjet << "," 
-	    			<< particle2->PT << "," 
-	    			<< particle2->Eta << "," 
-	    			<< particle2->Phi << "," 
-	    			<< jetMomentum.M() << ",";
-
-	    myfile_part << particle2->Tau[0] << "," 
-	    			<< particle2->Tau[1] << "," 
-	    			<< particle2->Tau[2] << "," 
-	    			<< particle2->Tau[3] << "," 
-	    			<< particle2->Tau[4] << ",";
-
-	    myfile_part << particle2->SoftDroppedP4.Pt() << "," 
-	    			<< particle2->SoftDroppedP4.M() << "," 
-	    			<< particle2->TrimmedP4.Pt() << "," 
-	    			<< particle2->TrimmedP4.M() << "," 
-	    			<< particle2->NSubJetsTrimmed << endl;
-	
-
-	    
-
-	    for(int j2 = 0; j2 < particle2->Constituents.GetEntriesFast(); ++j2)
-	      {
-			object = particle2->Constituents.At(j2);
-			if(object == 0){
-
-	                }
-			if(object->IsA() == GenParticle::Class())
-			  {
-			    subparticle = (GenParticle*) object;
-	   			myfile_part_sub << entry << ",";
-			    myfile_part_sub << subparticle->PT << "," 
-			    			<< subparticle->Eta << "," 
-			    			<< subparticle->Phi << "," 
-			    			<< subparticle->PID << endl;
-			  }
-	      }
-
-	    
-
-	    //Now for the det part.
-	    myfile_det << entry << ",";
-
-	    myfile_det << i << "," 
-	    		   << jet->PT << "," 
-	    		   << jet->Eta << "," 
-	    		   << jet->Phi << "," 
-	    		   << bestGenJetMomentum.M() << ",";
-
-	    myfile_det << jet->Tau[0] << "," 
-	    		   << jet->Tau[1] << "," 
-	    		   << jet->Tau[2] << "," 
-	    		   << jet->Tau[3] << "," 
-	    		   << jet->Tau[4] << ",";
-	    
-	    myfile_det << jet->SoftDroppedP4.Pt() << "," 
-	    		   << jet->SoftDroppedP4.M() << "," 
-	    		   << jet->TrimmedP4.Pt() << "," 
-	    		   << jet->TrimmedP4.M() << "," 
-	    		   << jet->NSubJetsTrimmed << endl;
-
-	    for(int j2 = 0; j2 < jet->Constituents.GetEntriesFast(); ++j2)
-	      {
-	      	
-			object = jet->Constituents.At(j2);
-			if(object == 0)
-				{  
-				}
-		
-		
-
-		else if(object->IsA() == Track::Class()){
-		  track = (Track*) object;
-		  if (abs(track->PID)==11){
-		  	myfile_det_sub << entry << ",";
-		    myfile_det_sub << track->PT << "," 
-		    		   << track->Eta << "," 
-		    		   << track->Phi << "," 
-		    		   << "11" << endl;  
-		  }
-		  else if (abs(track->PID)==13){
-		  	myfile_det_sub << entry << ",";
-		    myfile_det_sub << track->PT << "," 
-		    		   << track->Eta << "," 
-		    		   << track->Phi << "," 
-		    		   << "13" << endl; 
-		  }
-		  else{
-		  	myfile_det_sub << entry << ",";
-		    myfile_det_sub << track->PT << "," 
-		    		   << track->Eta << "," 
-		    		   << track->Phi << "," 
-		    		   << "211" << endl; 
-		  }
-		}
-		else if(object->IsA() == Tower::Class()){
-
-		  tower = (Tower*) object;
-		  if (tower->Eem/(tower->Eem+tower->Ehad) == 1){
-		  	myfile_det_sub << entry << ",";
-		    myfile_det_sub << tower->ET << "," 
-		    		   << tower->Eta << "," 
-		    		   << tower->Phi << "," 
-		    		   << "22" << endl; 
-		  }
-		  else{
-		  	myfile_det_sub << entry << ",";
-		    myfile_det_sub << tower->ET << "," 
-		               << tower->Eta << "," 
-		               << tower->Phi << ","
-		               << "2112" << endl; 
-		  }
-		}
-	      }
-	    
-	  }
-      }
-
-      
-      // Output every single stable hadron
-      for(int k = 0; k < branchParticle ->GetEntriesFast(); ++k)
-	      {
-	      	GenParticle *gen = (GenParticle*) branchParticle->At(k); 
-	      	//Final state gen_particle
-	      	if ( gen->Status!=1 ) continue;    
-     		//skip electron type neutrinos
-    		if (abs(gen->PID)==12 ) continue; 
-			//skip muon type neutrinos
-			if (abs(gen->PID)==14 ) continue; 
-			//skip tau type neutrinos
-			if (abs(gen->PID)==16 ) continue;
-			//save 4-vector and PdgID
+		// t
+		if (gen->PID==t_PID && find_t == false) {
+			int boson_index = find_index(branchParticle, k, boson_plus_PID);
+			int b_index = find_index(branchParticle, k, b_PID);
+			int electron_index = find_index(branchParticle, boson_index, electron_PID);
+			int muon_index = find_index(branchParticle, boson_index, muon_PID);
+			if (boson_index > 0 && b_index > 0 && (electron_index > 0 || muon_index > 0)) {
+				cout << "Entry: " << entry << " " << k << " " << boson_index << " " << b_index << " " << electron_index << " " << muon_index << endl;
+				find_t = true;
+			}
 			
-			myfile_hadron << entry << ",";
+		}
 
-			myfile_hadron << gen->Status << "," 
-						  << gen->PT << "," 
-						  << gen->Eta << "," 
-						  << gen->Phi << "," 
-						  << gen->Mass << "," 
-						  << gen->M1 <<"," 
-						  << gen->M2 << "," 
-						  << gen->PID << endl;
-		  }
+		//tbar
+		if (gen->PID==tb_PID && find_tbar == false) {
+			int boson_index = find_index(branchParticle, k, bb_PID);
 
+			GenParticle *gen_boson = (GenParticle*) branchParticle->At(boson_index);
+			
+			if (boson_index > 0) {
+				cout << "Entry: " << entry << " " << k << " " << boson_index << endl;
+				find_tbar = true;
+			}
+		}
+
+		if (find_t == true && find_tbar == true) {
+			break;
+		}
+		
+	  }
   }
 }
+
+
+
 //------------------------------------------------------------------------------
 
 void mymass(const char *inputFile, const char *outputFile_det, const char *outputFile_part, const char *outputFile_hadron,
@@ -292,9 +178,9 @@ void mymass(const char *inputFile, const char *outputFile_det, const char *outpu
 
   cout << "** Exiting..." << endl;
 
-  delete result;
-  delete treeReader;
-  delete chain;
+  // delete result;
+  // delete treeReader;
+  // delete chain;
 }
 
 //------------------------------------------------------------------------------
